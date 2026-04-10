@@ -143,3 +143,15 @@ EMAIL_USE_TLS = True
 EMAIL_PORT = 587
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
+
+
+
+
+
+############
+
+
+
+
+RAZORPAY_KEY_ID = 'rzp_test_SbcaGtTaK7ktos'
+RAZORPAY_KEY_SECRET = 'ISSn1ei4HPneF7Cd5aAzkH2u'

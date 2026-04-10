@@ -1,0 +1,143 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Invoice Receipt</title>
+    <link href="{% static 'css/bootstrap.css' %}" rel="stylesheet" type="text/css"/>
+    <style>
+        body {
+            background: #fff;
+            color: #222;
+            font-family: Arial, sans-serif;
+            margin: 0;
+        }
+        .invoice-page {
+            max-width: 1280px;
+            margin: 18px auto;
+            padding: 16px 12px 36px;
+        }
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 28px;
+        }
+        .invoice-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-top: 10px;
+            line-height: 1.2;
+        }
+        .invoice-meta,
+        .invoice-text {
+            font-size: 15px;
+            line-height: 1.35;
+        }
+        .invoice-meta {
+            text-align: right;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 38px 0 28px;
+        }
+        .invoice-table th,
+        .invoice-table td {
+            border: 1px solid #cfcfcf;
+            padding: 12px 14px;
+            vertical-align: top;
+        }
+        .invoice-table th {
+            text-align: center;
+            font-size: 16px;
+        }
+        .logo {
+            height: 42px;
+        }
+        .notes {
+            margin-top: 24px;
+        }
+        .thank-you {
+            font-size: 17px;
+            font-weight: 700;
+            margin-top: 24px;
+        }
+        .footer-note {
+            text-align: center;
+            margin-top: 34px;
+            color: #555;
+        }
+        .description-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="invoice-page">
+        <div class="invoice-header">
+            <div>
+                <img class="logo" src="{% static 'images/logo.png' %}" alt="Logo">
+                <div class="invoice-title">Invoice Receipt</div>
+                <div class="invoice-text">Invoice Number: {{ invoice.order.uid }}</div>
+            </div>
+            <div class="invoice-meta">
+                <div>Order Date : {{ invoice.order.updated_at|date:"d/m/Y" }}</div>
+                <div><strong>{{ customer_name }}</strong></div>
+                <div>{{ customer_address }}</div>
+            </div>
+        </div>
+
+        <div class="invoice-text">
+            <div class="section-title">Service Provider</div>
+            <div>Django Ecommerce</div>
+            <div>1001A, The Capital B Wing, 10th Floor, Bandra Kurla Complex, Bandra (E), Mumbai, Contact: 9876543210</div>
+        </div>
+
+        <table class="invoice-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Bill Amount</th>
+                    <th>Payment Method</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        <ul class="description-list">
+                            {% for item in invoice.items %}
+                            <li>{{ item.product.product_name }} x {{ item.quantity }}{% if item.size %} ({{ item.size }}){% endif %}</li>
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td>
+                        Subtotal: {{ invoice.subtotal }}<br>
+                        Discount: {{ invoice.discount_amount }}<br>
+                        <strong>Total: {{ invoice.total_amount }}</strong>
+                    </td>
+                    <td>
+                        {{ payment_method }}<br>
+                        Payment ID: {{ invoice.order.razor_pay_payment_id|default:"N/A" }}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="notes invoice-text">
+            <div class="section-title">Please Note:</div>
+            <div>Dear Consumer, the bill payment will reflect in next 48 hours in your account. Please contact our customer support for any queries regarding this order.</div>
+        </div>
+
+        <div class="thank-you">Thank you for using our service</div>
+        <div class="footer-note invoice-text">(This is computer generated receipt and does not require physical signature.)</div>
+    </div>
+</body>
+</html>

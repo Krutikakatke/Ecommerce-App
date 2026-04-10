@@ -1,0 +1,163 @@
+{% extends "base/base.html" %}
+
+{% block start %}
+<section class="section-content padding-y bg">
+    <div class="container">
+        <div class="row">
+            {% if show_account_menu %}
+            <aside class="col-md-3">
+                <div class="card">
+                    <div class="card-header">
+                        <strong>My Account</strong>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <a href="{% url 'account_section' 'orders' %}" class="list-group-item list-group-item-action {% if active_section == 'orders' %}active{% endif %}">Orders</a>
+                        <a href="{% url 'account_section' 'wishlist' %}" class="list-group-item list-group-item-action {% if active_section == 'wishlist' %}active{% endif %}">Wishlist</a>
+                        <a href="{% url 'account_section' 'coupons' %}" class="list-group-item list-group-item-action {% if active_section == 'coupons' %}active{% endif %}">Coupons</a>
+                        <a href="{% url 'account_section' 'help-center' %}" class="list-group-item list-group-item-action {% if active_section == 'help-center' %}active{% endif %}">Help Center</a>
+                    </div>
+                </div>
+            </aside>
+            {% endif %}
+
+            <main class="{% if show_account_menu %}col-md-9{% else %}col-md-12{% endif %}">
+                <div class="card">
+                    <div class="card-body">
+                        {% if active_section == 'orders' %}
+                        <h4 class="mb-4">Your Orders</h4>
+                        {% if order_cards %}
+                            {% for entry in order_cards %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between flex-wrap mb-2">
+                                    <div>
+                                        <strong>Order ID:</strong> {{ entry.order.razor_pay_order_id|default:entry.order.uid }}<br>
+                                        <small class="text-muted">Placed on {{ entry.order.updated_at|date:"d M Y, h:i A" }}</small>
+                                    </div>
+                                    <div class="text-md-right">
+                                        <div><strong>Total:</strong> {{ entry.total_amount }}</div>
+                                        <div><strong>Items:</strong> {{ entry.item_count }}</div>
+                                        <a href="{% url 'invoice' entry.order.uid %}" class="btn btn-sm btn-outline-primary mt-2">View Invoice</a>
+                                    </div>
+                                </div>
+                                {% for item in entry.items %}
+                                <div class="d-flex justify-content-between border-top pt-2 mt-2">
+                                    <div>
+                                        <strong>{{ item.product.product_name }}</strong>
+                                        <div class="text-muted small">
+                                            Quantity: {{ item.quantity }}
+                                            {% if item.size %}| Size: {{ item.size }}{% endif %}
+                                        </div>
+                                    </div>
+                                    <div>{{ item.unit_price }}</div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="mb-0">You have not placed any orders yet.</p>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if active_section == 'wishlist' %}
+                        <h4 class="mb-4">Wishlist</h4>
+                        <div class="border rounded p-4">
+                            <p class="mb-2">Your wishlist area is ready.</p>
+                            <p class="mb-0 text-muted">You can start using this section later for saved products. Right now it works as a placeholder page from the profile menu.</p>
+                        </div>
+                        {% endif %}
+
+                        {% if active_section == 'coupons' %}
+                        <h4 class="mb-4">Coupons</h4>
+                        {% if available_coupons %}
+                            {% for coupon in available_coupons %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <strong>{{ coupon.Coupon_code }}</strong>
+                                    {% if coupon.is_valid %}
+                                    <span class="badge badge-success">Available</span>
+                                    {% else %}
+                                    <span class="badge badge-secondary">Expired</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-muted small mt-2">
+                                    Save {{ coupon.discount_price }} on orders above {{ coupon.minimum_amount }}
+                                </div>
+                                {% if coupon.expires_at %}
+                                <div class="text-muted small">Expires on {{ coupon.expires_at|date:"d M Y, h:i A" }}</div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="mb-0">No coupons available right now.</p>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if active_section == 'help-center' %}
+                        <h4 class="mb-4">Help Center</h4>
+                        <div class="border rounded p-4">
+                            <p><strong>Need help with an order?</strong></p>
+                            <p class="mb-2">Use the Orders and Delivery pages to check your latest purchase details.</p>
+                            <p class="mb-2">For payment questions, open the Payment page from the top navigation.</p>
+                            <p class="mb-0">Support email: support@ecommerce.local</p>
+                        </div>
+                        {% endif %}
+
+                        {% if active_section == 'delivery' %}
+                        <h4 class="mb-4">Delivery Tracking</h4>
+                        {% if order_cards %}
+                            {% for entry in order_cards %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between flex-wrap">
+                                    <div>
+                                        <strong>{{ entry.order.razor_pay_order_id|default:entry.order.uid }}</strong>
+                                        <div class="text-muted small">Placed on {{ entry.order.updated_at|date:"d M Y, h:i A" }}</div>
+                                    </div>
+                                    <span class="badge badge-info align-self-start">{{ entry.status_label }}</span>
+                                </div>
+                                <p class="mt-3 mb-1">{{ entry.status_description }}</p>
+                                <small class="text-muted">{{ entry.item_count }} item{{ entry.item_count|pluralize }} in this shipment.</small>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="mb-0">No deliveries to track yet.</p>
+                        {% endif %}
+                        {% endif %}
+
+                        {% if active_section == 'payment' %}
+                        <h4 class="mb-4">Payment Status</h4>
+                        {% if order_cards %}
+                            {% for entry in order_cards %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between flex-wrap">
+                                    <div>
+                                        <strong>Order:</strong> {{ entry.order.razor_pay_order_id|default:entry.order.uid }}<br>
+                                        <small class="text-muted">Payment ID: {{ entry.order.razor_pay_payment_id|default:"Pending" }}</small>
+                                    </div>
+                                    {% if entry.order.is_paid %}
+                                    <span class="badge badge-success align-self-start">Payment Successful</span>
+                                    {% else %}
+                                    <span class="badge badge-warning align-self-start">Pending</span>
+                                    {% endif %}
+                                </div>
+                                <div class="mt-3">
+                                    <strong>Amount Paid:</strong> {{ entry.total_amount }}
+                                </div>
+                                <div class="mt-3">
+                                    <a href="{% url 'invoice' entry.order.uid %}" class="btn btn-sm btn-outline-primary">View Invoice</a>
+                                </div>
+                                <div class="text-muted small mt-2">
+                                    Signature: {{ entry.order.razor_pay_payment_signature|default:"Not available" }}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <p class="mb-0">No payment records found yet.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+</section>
+{% endblock %}

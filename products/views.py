@@ -1,5 +1,11 @@
+from django.apps import apps
+from django.conf import settings
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.views.decorators.http import require_POST
+import razorpay
 
 from products.models import Coupon, Product
 
@@ -72,6 +78,10 @@ def _get_available_coupons(cart_total):
         })
 
     return available_coupons
+
+
+def _get_cart_total(cart):
+    return sum(item['unit_price'] * item['quantity'] for item in cart.values())
 
 
 def get_product(request, slug):
@@ -156,6 +166,25 @@ def cart_view(request):
     discount_amount = _get_discount_amount(cart_total, coupon)
     grand_total = max(cart_total - discount_amount, 0)
     available_coupons = _get_available_coupons(cart_total)
+    razorpay_order_id = ''
+    razorpay_amount = 0
+
+    if grand_total > 0:
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+        payment = client.order.create(
+            {
+                'amount': int(grand_total * 100),
+                'currency': 'INR',
+                'payment_capture': '1',
+            }
+        )
+        razorpay_order_id = payment.get('id', '')
+        razorpay_amount = payment.get('amount', 0)
+        request.session['pending_razorpay_order'] = {
+            'order_id': razorpay_order_id,
+            'amount': razorpay_amount,
+        }
+        request.session.modified = True
 
     return render(
         request,
@@ -170,6 +199,9 @@ def cart_view(request):
             'coupon_code_input': coupon_code_input,
             'available_coupons': available_coupons,
             'quantity_options': range(1, max_quantity + 5),
+            'razorpay_key': settings.RAZORPAY_KEY_ID,
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_amount': razorpay_amount,
         },
     )
 
@@ -244,3 +276,87 @@ def remove_coupon(request):
     _clear_coupon(request)
     messages.success(request, 'Coupon removed.')
     return redirect('cart')
+
+
+@login_required
+@require_POST
+def verify_payment(request):
+    Cart = apps.get_model('accounts', 'Cart')
+    CartItems = apps.get_model('accounts', 'CartItems')
+    razorpay_order_id = request.POST.get('razorpay_order_id', '').strip()
+    razorpay_payment_id = request.POST.get('razorpay_payment_id', '').strip()
+    razorpay_signature = request.POST.get('razorpay_signature', '').strip()
+
+    pending_order = request.session.get('pending_razorpay_order', {})
+    if not razorpay_order_id or pending_order.get('order_id') != razorpay_order_id:
+        return JsonResponse({'success': False, 'message': 'Invalid payment order.'}, status=400)
+
+    cart = _get_cart(request)
+    if not cart:
+        return JsonResponse({'success': False, 'message': 'Your cart is empty.'}, status=400)
+
+    cart_total = _get_cart_total(cart)
+    coupon_data = _get_coupon(request)
+    discount_amount = _get_discount_amount(cart_total, coupon_data)
+    grand_total = max(cart_total - discount_amount, 0)
+    expected_amount = int(grand_total * 100)
+
+    if pending_order.get('amount') != expected_amount:
+        return JsonResponse({'success': False, 'message': 'Payment amount mismatch.'}, status=400)
+
+    existing_cart = Cart.objects.filter(
+        razor_pay_order_id=razorpay_order_id,
+        razor_pay_payment_id=razorpay_payment_id,
+        is_paid=True,
+    ).first()
+    if existing_cart:
+        return JsonResponse({'success': True, 'redirect_url': '/product/cart/'})
+
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+    try:
+        client.utility.verify_payment_signature(
+            {
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature,
+            }
+        )
+    except razorpay.errors.SignatureVerificationError:
+        return JsonResponse({'success': False, 'message': 'Payment verification failed.'}, status=400)
+
+    coupon_obj = None
+    if coupon_data:
+        coupon_obj = Coupon.objects.filter(Coupon_code__iexact=coupon_data.get('code', '')).first()
+
+    purchased_cart = Cart.objects.create(
+        user=request.user,
+        coupon=coupon_obj,
+        is_paid=True,
+        razor_pay_order_id=razorpay_order_id,
+        razor_pay_payment_id=razorpay_payment_id,
+        razor_pay_payment_signature=razorpay_signature,
+    )
+
+    for item in cart.values():
+        product = Product.objects.filter(slug=item['slug']).first()
+        if not product:
+            continue
+
+        CartItems.objects.create(
+            cart=purchased_cart,
+            product=product,
+            quantity=item['quantity'],
+            size=item.get('size', ''),
+            unit_price=item['unit_price'],
+        )
+
+    request.session['cart'] = {}
+    request.session.pop('coupon', None)
+    request.session.pop('coupon_error', None)
+    request.session.pop('coupon_code_input', None)
+    request.session.pop('pending_razorpay_order', None)
+    request.session.modified = True
+    messages.success(request, 'Payment successful. Your purchase has been saved.')
+
+    return JsonResponse({'success': True, 'redirect_url': '/product/cart/'})

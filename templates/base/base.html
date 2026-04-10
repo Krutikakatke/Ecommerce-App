@@ -45,9 +45,9 @@ $(document).ready(function() {
 		<nav class="navbar navbar-dark navbar-expand p-0 bg-dark">
 		<div class="container">
 			<ul class="navbar-nav d-none d-md-flex mr-auto">
-				<li class="nav-item"><a class="nav-link" href="#">Home</a></li>
-				<li class="nav-item"><a class="nav-link" href="#">Delivery</a></li>
-				<li class="nav-item"><a class="nav-link" href="#">Payment</a></li>
+				<li class="nav-item"><a class="nav-link" href="{% url 'index' %}">Home</a></li>
+				<li class="nav-item"><a class="nav-link" href="{% url 'account_section' 'delivery' %}">Delivery</a></li>
+				<li class="nav-item"><a class="nav-link" href="{% url 'account_section' 'payment' %}">Payment</a></li>
 			</ul>
 			<ul class="navbar-nav">
 				<li class="nav-item"><a href="#" class="nav-link"> Call: +99812345678 </a></li>
@@ -90,7 +90,7 @@ $(document).ready(function() {
 						<span class="badge badge-pill badge-danger notify">{{ cart_count }}</span>
 					</div>
 					<div class="widget-header icontext">
-						<a href="#" class="icon icon-sm rounded-circle border"><i class="fa fa-user"></i></a>
+						<a href="{% if request.user.is_authenticated %}{% url 'account_profile' %}{% else %}{% url 'login' %}{% endif %}" class="icon icon-sm rounded-circle border"><i class="fa fa-user"></i></a>
 						<div class="text">
 							<span class="text-muted">Welcome!</span>
 							<div> 
@@ -105,6 +105,10 @@ $(document).ready(function() {
 			</div> <!-- container.// -->
 		</section> <!-- header-main .// -->
 		</header>
+
+		<div class="container mt-3">
+			{% include "base/alert.html" %}
+		</div>
 
 		{% block start %}
 		{% endblock %}
